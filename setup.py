@@ -20,6 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            "simulated_sensor_node = shipsim_sensor_module.simulated_sensor_node:main"
         ],
     },
 )
