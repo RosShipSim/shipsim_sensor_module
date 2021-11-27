@@ -14,6 +14,10 @@ class SensorNode(Node):
     cmd_vel_Twist = Twist()
     cmd_vel_Twist2 = Twist()
 
+    σ_u = 0.05 #0.01 # [rad/s] 正規分布ノイズの標準偏差
+    σ_v = 0.05 #0.01 # [rad/s] 正規分布ノイズの標準偏差
+    σ_r = 0.05 #0.01 # [rad/s] 正規分布ノイズの標準偏差
+
     def __init__(self, publish_address="/ship1sim/sensor", timer_period=0.1):
         """init."""
         super().__init__("simulated_sensor")
@@ -25,11 +29,11 @@ class SensorNode(Node):
     def sender_callback(self):
         """sender_callback."""
 
-        σ_true = 0.1 #0.01 # [rad/s] 正規分布ノイズの標準偏差
+        #σ_true = 0.1 #0.01 # [rad/s] 正規分布ノイズの標準偏差
 
-        self.cmd_vel_Twist2.linear.x = self.cmd_vel_Twist.linear.x
-        self.cmd_vel_Twist2.linear.y = self.cmd_vel_Twist.linear.y
-        self.cmd_vel_Twist2.angular.z = self.cmd_vel_Twist.angular.z + np.random.normal(0, σ_true) #回頭角速度にセンサ誤差を付加
+        self.cmd_vel_Twist2.linear.x = self.cmd_vel_Twist.linear.x + np.random.normal(0, self.σ_u)
+        self.cmd_vel_Twist2.linear.y = self.cmd_vel_Twist.linear.y + np.random.normal(0, self.σ_v)
+        self.cmd_vel_Twist2.angular.z = self.cmd_vel_Twist.angular.z + np.random.normal(0, self.σ_r) #回頭角速度にセンサ誤差を付加
 
         self.pub_sensor.publish(self.cmd_vel_Twist2)
         self.get_logger().info('MMG SensorNode Publishing: "%s","%s","%s" ' % (self.cmd_vel_Twist2.linear.x, self.cmd_vel_Twist2.linear.y, self.cmd_vel_Twist2.angular.z))
