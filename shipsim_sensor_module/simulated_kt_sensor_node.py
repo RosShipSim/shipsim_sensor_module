@@ -15,27 +15,43 @@ class SensorNode(Node):
     cmd_vel_Twist = Twist()
     cmd_vel_Twist2 = Twist()
 
-    def __init__(self, publish_address="/ship1/sensor", timer_period=0.1):
+    def __init__(self, publish_address="/ship1/obs_vel"):
         """init."""
-        super().__init__("simulated_sensor")
-        self.delta_time = timer_period
-        self.pub_sensor = self.create_publisher(Twist, publish_address, 1)
-        self.subscription = self.create_subscription(
-            Twist, "/ship1/cmd_vel", self.listener_callback, 1
+        super().__init__("sensor", namespace="ship1")
+        self.declare_parameter("publish_address", "/ship1/obs_vel")
+        self.declare_parameter("subscribe_address", "/ship1/cmd_vel")
+        self.declare_parameter("delta_time", 0.1)
+
+        self.declare_parameter("mu_r", 0.00)  # [rad/s] mean of Gauss noize
+        self.declare_parameter("sigma_r", 0.05)  # [rad/s] std of Gauss noize
+
+        publish_address = (
+            self.get_parameter("publish_address").get_parameter_value().string_value
         )
-        self.timer = self.create_timer(timer_period, self.sender_callback)
+        self.publisher = self.create_publisher(Twist, publish_address, 1)
+
+        subscribe_address = (
+            self.get_parameter("subscribe_address").get_parameter_value().string_value
+        )
+        self.subscription = self.create_subscription(
+            Twist, subscribe_address, self.listener_callback, 1
+        )
+
+        delta_time = self.get_parameter("delta_time").value
+        self.timer = self.create_timer(delta_time, self.sender_callback)
 
     def sender_callback(self):
         """sender_callback."""
 
-        σ_r = 0.05  # 0.01 #0.1 [rad/s] 正規分布ノイズの標準偏差
+        μ_r = self.get_parameter("mu_r").value
+        σ_r = self.get_parameter("sigma_r").value
 
         self.cmd_vel_Twist2.linear.x = self.cmd_vel_Twist.linear.x
         self.cmd_vel_Twist2.angular.z = self.cmd_vel_Twist.angular.z + np.random.normal(
-            0, self.σ_r
-        )  # 回頭角速度にセンサ誤差を付加
+            μ_r, σ_r
+        )
 
-        self.pub_sensor.publish(self.cmd_vel_Twist2)
+        self.publisher.publish(self.cmd_vel_Twist2)
         self.get_logger().info(
             'KT SensorNode Publishing: "%s","%s" '
             % (self.cmd_vel_Twist2.linear.x, self.cmd_vel_Twist2.angular.z)
