@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from numpy.core import multiarray
 
 import rclpy
 from rclpy.node import Node
@@ -49,7 +48,7 @@ class SensorNode(Node):
 
         self.cmd_vel_Twist2.linear.x = self.cmd_vel_Twist.linear.x
         self.cmd_vel_Twist2.angular.z = self.cmd_vel_Twist.angular.z + np.random.normal(
-            μ_r, self.σ_r
+            μ_r, σ_r
         )
 
         self.publisher.publish(self.cmd_vel_Twist2)
