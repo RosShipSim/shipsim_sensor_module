@@ -15,7 +15,7 @@ class SensorNode(Node):
     cmd_vel_Twist = Twist()
     cmd_vel_Twist2 = Twist()
 
-    def __init__(self, publish_address="/ship1/obs_vel"):
+    def __init__(self):
         """init."""
         super().__init__("sensor", namespace="ship1")
         self.declare_parameter("publish_address", "/ship1/obs_vel")

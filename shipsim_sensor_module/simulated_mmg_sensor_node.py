@@ -17,42 +17,69 @@ class SensorNode(Node):
     cmd_vel_Twist2 = Twist()
     sen_pose = PositionSensor()
 
-    σ_u = 0.05  # 0.01 # [rad/s] 正規分布ノイズの標準偏差
-    σ_v = 0.05  # 0.01 # [rad/s] 正規分布ノイズの標準偏差
-    σ_r = 0.05  # 0.01 # [rad/s] 正規分布ノイズの標準偏差
-    σ_x = 0.5  # [m] 正規分布ノイズの標準偏差
-    σ_y = 0.5  # [m] 正規分布ノイズの標準偏差
-    σ_z = 0.05  # 0.01 # [rad] 正規分布ノイズの標準偏差
-
     x0 = 0
     y0 = 0
     psi0 = 0
 
-    def __init__(self, publish_address="/ship1/sensor1", timer_period=0.1):
+    def __init__(self):
         """init."""
-        super().__init__("simulated_sensor")
-        self.delta_time = timer_period
+        super().__init__("sensor", namespace="ship1")
+        self.declare_parameter("publish_address", "/ship1/obs_vel")
+        self.declare_parameter("subscribe_address", "/ship1/cmd_vel")
+        self.declare_parameter("delta_time", 0.1)
+
+        self.declare_parameter("mu_u", 0.00)  # [m/s] mean of Gauss noize
+        self.declare_parameter("sigma_u", 0.05)  # [m/s] std of Gauss noize
+        self.declare_parameter("mu_v", 0.00)  # [m/s] mean of Gauss noize
+        self.declare_parameter("sigma_v", 0.05)  # [m/s] std of Gauss noize
+        self.declare_parameter("mu_r", 0.00)  # [rad/s] mean of Gauss noize
+        self.declare_parameter("sigma_r", 0.05)  # [rad/s] std of Gauss noize
+
+        self.declare_parameter("mu_x", 0.00)  # [m] mean of Gauss noize
+        self.declare_parameter("sigma_x", 0.5)  # [m] std of Gauss noize
+        self.declare_parameter("mu_y", 0.00)  # [m] mean of Gauss noize
+        self.declare_parameter("sigma_y", 0.5)  # [m] std of Gauss noize
+        self.declare_parameter("mu_psi", 0.00)  # [rad] mean of Gauss noize
+        self.declare_parameter("sigma_psi", 0.05)  # [rad] std of Gauss noize
+
+        publish_address = (
+            self.get_parameter("publish_address").get_parameter_value().string_value
+        )
         self.pub_sensor1 = self.create_publisher(Twist, publish_address, 1)
+
         self.pub_PositionSensor = self.create_publisher(
             PositionSensor, "/ship1/PositionSensor", 1
         )
-        self.subscription = self.create_subscription(
-            Twist, "/ship1/cmd_vel", self.listener_callback, 1
+
+        subscribe_address = (
+            self.get_parameter("subscribe_address").get_parameter_value().string_value
         )
-        self.timer = self.create_timer(timer_period, self.sender_callback1)
-        self.timer2 = self.create_timer(timer_period, self.sender_callback2)
+        self.subscription = self.create_subscription(
+            Twist, subscribe_address, self.listener_callback, 1
+        )
+
+        delta_time = self.get_parameter("delta_time").value
+        self.timer = self.create_timer(delta_time, self.sender_callback1)
+        self.timer2 = self.create_timer(delta_time, self.sender_callback2)
 
     def sender_callback1(self):
         """sender_callback."""
 
+        μ_u = self.get_parameter("mu_u").value
+        σ_u = self.get_parameter("sigma_u").value
+        μ_v = self.get_parameter("mu_v").value
+        σ_v = self.get_parameter("sigma_v").value
+        μ_r = self.get_parameter("mu_r").value
+        σ_r = self.get_parameter("sigma_r").value
+
         self.cmd_vel_Twist2.linear.x = self.cmd_vel_Twist.linear.x + np.random.normal(
-            0, self.σ_u
+            μ_u, σ_u
         )  # センサ誤差を付加
         self.cmd_vel_Twist2.linear.y = self.cmd_vel_Twist.linear.y + np.random.normal(
-            0, self.σ_v
+            μ_v, σ_v
         )  # センサ誤差を付加
         self.cmd_vel_Twist2.angular.z = self.cmd_vel_Twist.angular.z + np.random.normal(
-            0, self.σ_r
+            μ_r, σ_r
         )  # センサ誤差を付加
 
         self.pub_sensor1.publish(self.cmd_vel_Twist2)
@@ -67,6 +94,7 @@ class SensorNode(Node):
 
     def sender_callback2(self):
         """sender_callback."""
+        delta_time = self.get_parameter("delta_time").value
 
         u_now = self.cmd_vel_Twist.linear.x
         v_now = self.cmd_vel_Twist.linear.y
@@ -76,7 +104,7 @@ class SensorNode(Node):
             u_now,
             v_now,
             r_now,
-            self.delta_time,
+            delta_time,
         )
 
         self.pub_PositionSensor.publish(self.sen_pose)
@@ -87,6 +115,13 @@ class SensorNode(Node):
 
     def get_pos(self, u_now, v_now, r_now, delta_time):
         pose = PositionSensor()
+
+        μ_x = self.get_parameter("mu_x").value
+        σ_x = self.get_parameter("sigma_x").value
+        μ_y = self.get_parameter("mu_y").value
+        σ_y = self.get_parameter("sigma_y").value
+        μ_psi = self.get_parameter("mu_psi").value
+        σ_psi = self.get_parameter("sigma_psi").value
 
         self.x0 = (
             self.x0
@@ -104,9 +139,9 @@ class SensorNode(Node):
         elif self.psi0 < (-np.pi):
             self.psi0 = self.psi0 + 2 * np.pi
 
-        pose.x = self.x0 + np.random.normal(0, self.σ_x)  # センサ誤差を付加
-        pose.y = self.y0 + np.random.normal(0, self.σ_y)  # センサ誤差を付加
-        pose.psi = self.psi0 + np.random.normal(0, self.σ_z)  # センサ誤差を付加
+        pose.x = self.x0 + np.random.normal(μ_x, σ_x)  # センサ誤差を付加
+        pose.y = self.y0 + np.random.normal(μ_y, σ_y)  # センサ誤差を付加
+        pose.psi = self.psi0 + np.random.normal(μ_psi, σ_psi)  # センサ誤差を付加
 
         return pose
 
